@@ -5,25 +5,20 @@ from pydantic import BaseModel
 from datetime import datetime
 import base64
 
-
 app = FastAPI()
 
-
-# Allow CORS for all origins (adjust to your frontend domain in production)
+# IMPORTANT: restrict origins in production to your frontend domain for security
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Change to ["https://your-frontend-domain.com"] in production
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-# In-memory storage for demo
+# In-memory store (replace with DB for production)
 reports = []
 id_counter = 1
 
-
-# Pydantic model for response schema
 class Report(BaseModel):
     id: int
     title: str
@@ -36,8 +31,6 @@ class Report(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-
-# Endpoint to submit new report
 @app.post("/api/report", response_model=Report)
 async def create_report(
     title: str = Form(...),
@@ -52,8 +45,7 @@ async def create_report(
     photo_base64 = None
     if photo:
         contents = await photo.read()
-        # Optional: Check image size limit (e.g., 2MB)
-        if len(contents) > 2 * 1024 * 1024:
+        if len(contents) > 2 * 1024 * 1024:  # 2 MB size limit
             raise HTTPException(status_code=400, detail="Photo size too large, max is 2MB.")
         photo_base64 = base64.b64encode(contents).decode("utf-8")
 
@@ -74,8 +66,6 @@ async def create_report(
 
     return new_report
 
-
-# Endpoint to get all reports, filterable by status and category
 @app.get("/api/reports", response_model=List[Report])
 def get_reports(status: Optional[str] = None, category: Optional[str] = None):
     filtered = reports
@@ -85,8 +75,6 @@ def get_reports(status: Optional[str] = None, category: Optional[str] = None):
         filtered = [r for r in filtered if r["category"].lower() == category.lower()]
     return filtered
 
-
-# Endpoint to get a single report by id
 @app.get("/api/reports/{report_id}", response_model=Report)
 def get_report(report_id: int):
     report = next((r for r in reports if r["id"] == report_id), None)
@@ -94,8 +82,6 @@ def get_report(report_id: int):
         raise HTTPException(status_code=404, detail="Report not found")
     return report
 
-
-# Endpoint to update report status (for admin use)
 @app.patch("/api/reports/{report_id}", response_model=Report)
 def update_report_status(report_id: int, status: str = Form(...)):
     valid_statuses = ["Submitted", "In Progress", "Resolved", "Rejected"]
